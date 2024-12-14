@@ -1,6 +1,7 @@
 import os
 import json
 import datetime
+import re
 
 DATA_FOLDER = "wallet_data"
 DAILY_INTEREST_RATE = 0.0005  # Daily interest rate (e.g., 0.05%)
@@ -10,6 +11,8 @@ if not os.path.exists(DATA_FOLDER):
 
 
 class WalletSystem:
+    _cache = {}  # In-memory cache for wallet data
+
     def __init__(self, wallet_id, balance, name, email, phone, password):
         self.wallet_id = wallet_id
         self.balance = balance
@@ -42,13 +45,20 @@ class WalletSystem:
         with open(filepath, "w") as file:
             json.dump(data, file)
 
+            WalletSystem._cache[self.wallet_id] = data
+
     @classmethod
     def load_from_file(cls, wallet_id):
-        filepath = os.path.join(DATA_FOLDER, f"{wallet_id}.json")
-        if not os.path.exists(filepath):
-            raise FileNotFoundError(f"Information file for wallet {wallet_id} not found.")
-        with open(filepath, "r") as file:
-            data = json.load(file)
+        if wallet_id in cls._cache:
+            data = cls._cache[wallet_id]
+        else:
+            filepath = os.path.join(DATA_FOLDER, f"{wallet_id}.json")
+            if not os.path.exists(filepath):
+                raise FileNotFoundError(f"Information file for wallet {wallet_id} not found.")
+            with open(filepath, "r") as file:
+                data = json.load(file)
+            cls._cache[wallet_id] = data
+
         wallet = cls(                   #create a new instance named wallet and provide values to the instance in order
             data["wallet_id"],
             data["balance"],
@@ -142,14 +152,32 @@ class WalletSystem:
             choice = input("Please select an option (enter number): ")
 
             if choice == "1":
-                self.name = input("Enter new name: ")
+                new_name = input("Enter new name: ")
+                error_message = WalletSystem.validate_input("name", new_name)
+                if error_message:
+                    print(error_message)
+                    continue
+                self.name = new_name
                 print("Name updated!")
+
             elif choice == "2":
-                self.email = input("Enter new email: ")
+                new_email = input("Enter new email: ")
+                error_message = WalletSystem.validate_input("email", new_email)
+                if error_message:
+                    print(error_message)
+                    continue
+                self.email = new_email
                 print("Email updated!")
+
             elif choice == "3":
-                self.phone = input("Enter new phone number: ")
+                new_phone = input("Enter new phone number: ")
+                error_message = WalletSystem.validate_input("phone", new_phone)
+                if error_message:
+                    print(error_message)
+                    continue
+                self.phone = new_phone
                 print("Phone updated!")
+
             elif choice == "4":
                 print("Returning to personal info menu.")
                 break
@@ -230,6 +258,24 @@ class WalletSystem:
 #    def verify_password(self, password):
 #        return self.password == password
 
+    @staticmethod
+    def validate_input(input_type, value):
+        validation_patterns = {
+            "wallet_id": (r'^\d{3,9}$', "Wallet ID must be between 3 and 9 digits."),
+            "name": (r'^[a-zA-Z]{1,9}$', "Name must be between 1 and 9 English letters."),
+            "email": (r'^[\w.-]+@[\w.-]+\.\w{2,}$', "Email must contain '@' symbol and be a valid format."),
+            "phone": (r'^\d{1,13}$', "Phone number must be a valid 13-digit number."),
+            "password": (r'^[a-zA-Z0-9]{3,9}$', "Password must be between 3 and 9 characters, and consist of letters or digits."),
+        }
+
+        if input_type not in validation_patterns:
+            return "Invalid input type."
+
+        pattern, error_message = validation_patterns[input_type]
+        if not re.match(pattern, value):
+            return error_message
+        return None
+
 
 def login_or_register():
     print("========== Welcome to the Digital Wallet System ==========")
@@ -253,14 +299,40 @@ def login_or_register():
 
         elif choice == "2":
             wallet_id = input("Enter a Wallet ID: ")
+
+            error_message = WalletSystem.validate_input("wallet_id", wallet_id)
+            if error_message:
+                print(error_message)
+                continue
+
             if os.path.exists(os.path.join(DATA_FOLDER, f"{wallet_id}.json")):
                 print("Wallet ID already exists. Please choose a different ID.")
                 continue
 
             name = input("Enter your name: ")
+            error_message = WalletSystem.validate_input("name", name)
+            if error_message:
+                print(error_message)
+                continue
+
             email = input("Enter your email: ")
+            error_message = WalletSystem.validate_input("email", email)
+            if error_message:
+                print(error_message)
+                continue
+
             phone = input("Enter your phone number: ")
+            error_message = WalletSystem.validate_input("phone", phone)
+            if error_message:
+                print(error_message)
+                continue
+
             password = input("Set a password: ")
+            error_message = WalletSystem.validate_input("password", password)
+            if error_message:
+                print(error_message)
+                continue
+
             initial_balance = 0
 
             wallet = WalletSystem(wallet_id, initial_balance, name, email, phone, password)
