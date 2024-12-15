@@ -32,22 +32,25 @@ class WalletSystem:
 
     def save_to_file(self):
         filepath = os.path.join(DATA_FOLDER, f"{self.wallet_id}.json")
-        data = {
-            "wallet_id": self.wallet_id,
-            "balance": self.balance,
-            "name": self.name,
-            "email": self.email,
-            "phone": self.phone,
-            "password": self.password,
-            "transaction_history": self.transaction_history,
-            "total_deposits": self.total_deposits,
-            "daily_limit": self.daily_limit,
-            "loan_total": self.loan_total,
-            "last_interest_date": self.last_interest_date
-        }
-        with open(filepath, "w") as file:
-            json.dump(data, file)
-        WalletSystem._cache[self.wallet_id] = data
+        try:
+            data = {
+                "wallet_id": self.wallet_id,
+                "balance": self.balance,
+                "name": self.name,
+                "email": self.email,
+                "phone": self.phone,
+                "password": self.password,
+                "transaction_history": self.transaction_history,
+                "total_deposits": self.total_deposits,
+                "daily_limit": self.daily_limit,
+                "loan_total": self.loan_total,
+                "last_interest_date": self.last_interest_date
+            }
+            with open(filepath, "w") as file:
+                json.dump(data, file)
+            WalletSystem._cache[self.wallet_id] = data
+        except Exception as e:
+            print(f"Failed to save wallet data: {e}")
 
     @classmethod
     def load_from_file(cls, wallet_id):
@@ -245,7 +248,7 @@ class WalletSystem:
         days_passed = (now_date - last_date).days
         if days_passed > 0:
             for _ in range(days_passed):
-                self.balance += self.balance * WalletSystem.DAILY_INTEREST_RATE
+                self.balance += self.balance * DAILY_INTEREST_RATE
             self.last_interest_date = now_date.strftime("%Y-%m-%d")
             self.save_to_file()
             print(f"Applied {days_passed} days of interest. New balance: ${self.balance:.2f}")
@@ -267,6 +270,7 @@ class WalletSystem:
         if self.last_transaction_date != today:
             self.last_transaction_date = today
             self.daily_transactions = 0
+            self.frozen = False
 
         self.daily_transactions += amount
         if self.daily_transactions > self.daily_limit:
