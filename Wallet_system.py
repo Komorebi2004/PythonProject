@@ -1,6 +1,6 @@
 import os
 import json
-import datetime
+from datetime import datetime, timedelta
 import re
 
 DATA_FOLDER = "wallet_data"
@@ -27,6 +27,7 @@ class WalletSystem:
         self.last_transaction_date = None
         self.frozen = False
         self.loan_total = 0
+        self.last_interest_date = None
 
     def save_to_file(self):
         filepath = os.path.join(DATA_FOLDER, f"{self.wallet_id}.json")
@@ -41,11 +42,11 @@ class WalletSystem:
             "total_deposits": self.total_deposits,
             "daily_limit": self.daily_limit,
             "loan_total": self.loan_total,
+            "last_interest_date": self.last_interest_date
         }
         with open(filepath, "w") as file:
             json.dump(data, file)
-
-            WalletSystem._cache[self.wallet_id] = data
+        WalletSystem._cache[self.wallet_id] = data
 
     @classmethod
     def load_from_file(cls, wallet_id):
@@ -71,6 +72,7 @@ class WalletSystem:
         wallet.total_deposits = data["total_deposits"]
         wallet.daily_limit = data["daily_limit"]
         wallet.loan_total = data["loan_total"]
+        wallet.last_interest_date = data.get("last_interest_date")
         return wallet
 
     def deposit(self, amount):
@@ -232,8 +234,23 @@ class WalletSystem:
         self.save_to_file()
 
     def add_daily_interest(self):
-        self.balance += self.balance * DAILY_INTEREST_RATE
-        self.save_to_file()
+        if not self.last_interest_date:
+            self.last_interest_date = datetime.now().strftime("%Y-%m-%d")
+            print("Last interest date was None. Set to today.")
+            self.save_to_file()
+            return
+        last_date = datetime.strptime(self.last_interest_date, "%Y-%m-%d")
+        today = datetime.now()
+        days_passed = (today - last_date).days
+        if days_passed > 0:
+            for _ in range(days_passed):
+                self.balance += self.balance * WalletSystem.DAILY_INTEREST_RATE
+            self.last_interest_date = today.strftime("%Y-%m-%d")
+            self.save_to_file()
+            print(f"Applied {days_passed} days of interest. New balance: ${self.balance:.2f}")
+        else:
+            print("No interest applied. Last interest date is already up to date.")
+
 
     def _add_transaction(self, transaction_type, amount, recipient_id=None):
         transaction = {
@@ -291,6 +308,8 @@ def login_or_register():
                 wallet = WalletSystem.load_from_file(wallet_id)
                 if wallet.password==password:
                     print(f"Login successful. Welcome, {wallet.name}!")
+                    wallet.add_daily_interest()
+                    wallet.save_to_file()
                     return wallet
                 else:
                     print("Incorrect password, please try again.")
