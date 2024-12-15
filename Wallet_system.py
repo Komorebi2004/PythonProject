@@ -3,6 +3,7 @@ import json
 from datetime import datetime, timedelta
 import re
 
+
 DATA_FOLDER = "wallet_data"
 DAILY_INTEREST_RATE = 0.0005  # Daily interest rate (e.g., 0.05%)
 
@@ -240,12 +241,12 @@ class WalletSystem:
             self.save_to_file()
             return
         last_date = datetime.strptime(self.last_interest_date, "%Y-%m-%d")
-        today = datetime.now()
-        days_passed = (today - last_date).days
+        now_date = datetime.now()
+        days_passed = (now_date - last_date).days
         if days_passed > 0:
             for _ in range(days_passed):
                 self.balance += self.balance * WalletSystem.DAILY_INTEREST_RATE
-            self.last_interest_date = today.strftime("%Y-%m-%d")
+            self.last_interest_date = now_date.strftime("%Y-%m-%d")
             self.save_to_file()
             print(f"Applied {days_passed} days of interest. New balance: ${self.balance:.2f}")
         else:
@@ -256,13 +257,13 @@ class WalletSystem:
         transaction = {
             "type": transaction_type,
             "amount": amount,
-            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "recipient_id": recipient_id,
         }
         self.transaction_history.append(transaction)
 
     def _check_daily_limit(self, amount):
-        today = datetime.date.today()
+        today = datetime.today().date()
         if self.last_transaction_date != today:
             self.last_transaction_date = today
             self.daily_transactions = 0
